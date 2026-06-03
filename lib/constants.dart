@@ -1,0 +1,2 @@
+var APIKEYPLANT = '2b10LCzrcSbw52MUh4MlmBgF1O';
+var APIKEYTREFLE = 'usr-slvv1Zp2n1TTa5TyOzHSTXrDekugd58ndwM06EsNSXU';
