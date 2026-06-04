@@ -9,15 +9,11 @@ class PianteController {
 
   final ValueNotifier<List<Pianta>> miePiante = ValueNotifier<List<Pianta>>([]);
 
-  // --- RIFERIMENTO AL DATABASE PRIVATO ---
-  // Ottiene il "cassetto" delle piante dedicato esclusivamente all'utente loggato
   CollectionReference get _pianteCollection {
     final uid = _auth.currentUser?.uid;
     if (uid == null) throw Exception("Errore: Utente non loggato!");
     return _firestore.collection('utenti').doc(uid).collection('mie_piante');
   }
-
-  // --- CRUD FIREBASE ---
 
   Future<void> caricaPiante() async {
     try {
@@ -25,22 +21,38 @@ class PianteController {
       final lista = snapshot.docs.map((doc) {
         return Pianta.fromFirestore(doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
-
       miePiante.value = lista;
     } catch (e) {
       debugPrint("Errore nel caricamento dal Cloud: $e");
     }
   }
 
-  // NUOVO: Sostituisce l'insertPianta di SQLite
   Future<void> salvaPianta(Pianta pianta) async {
     try {
-      // .doc().set() genera automaticamente un ID alfanumerico univoco stile Firebase
+      final snapshotEsistente = await _pianteCollection
+          .where('specie', isEqualTo: pianta.specie)
+          .get();
+
+      if (snapshotEsistente.docs.isNotEmpty) {
+        throw Exception("Hai giÃ  questa pianta nella tua serra!");
+      }
+
       await _pianteCollection.doc().set(pianta.toFirestore());
-      await caricaPiante(); // Aggiorna la UI in tempo reale
+      await caricaPiante();
     } catch (e) {
       debugPrint("Errore nel salvataggio Cloud: $e");
-      rethrow; // Passiamo l'errore alla UI
+      rethrow;
+    }
+  }
+
+  Future<void> cambiaPosizionePianta(Pianta pianta, bool isEsterno) async {
+    try {
+      await _pianteCollection.doc(pianta.id).update({
+        'isDaEsterno': isEsterno
+      });
+      await caricaPiante();
+    } catch (e) {
+      debugPrint("Errore cambio posizione: $e");
     }
   }
 
@@ -56,13 +68,25 @@ class PianteController {
   Future<void> innaffiaPianta(Pianta pianta) async {
     try {
       final piantaAggiornata = pianta.copiaCon(nuovaDataAnnaffiatura: DateTime.now());
-      // In Firebase basta inviare solo il campo che vogliamo aggiornare!
       await _pianteCollection.doc(pianta.id).update({
         'dataUltimaAnnaffiatura': piantaAggiornata.dataUltimaAnnaffiatura?.toIso8601String()
       });
       await caricaPiante();
     } catch (e) {
       debugPrint("Errore nell'aggiornamento Cloud: $e");
+    }
+  }
+
+  // NUOVO: Scrittura sul Cloud per la pulizia delle foglie
+  Future<void> pulisciPianta(Pianta pianta) async {
+    try {
+      final piantaAggiornata = pianta.copiaCon(nuovaDataPulizia: DateTime.now());
+      await _pianteCollection.doc(pianta.id).update({
+        'dataUltimaPulizia': piantaAggiornata.dataUltimaPulizia?.toIso8601String()
+      });
+      await caricaPiante(); // Ricarichiamo la UI dopo aver salvato
+    } catch (e) {
+      debugPrint("Errore nell'aggiornamento Pulizia Cloud: $e");
     }
   }
 }

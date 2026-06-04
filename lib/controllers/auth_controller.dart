@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // NUOVO IMPORT FIREBASE
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthController {
   // Istanza principale di Firebase Auth
@@ -27,7 +27,6 @@ class AuthController {
 
       return true;
     } on FirebaseAuthException catch (e) {
-      // Firebase ci dà errori super precisi (es. email già in uso, password debole)
       debugPrint("Errore Registrazione Firebase: ${e.code}");
       return false;
     } catch (e) {
@@ -71,4 +70,15 @@ class AuthController {
 
   /// Restituisce l'utente attualmente loggato (con il suo ID, Nome, Email)
   User? get utenteCorrente => _auth.currentUser;
+
+  // --- PRESENTATION LOGIC ---
+
+  /// Restituisce solo il primo nome dell'utente loggato, gestendo il fallback della lingua.
+  String ottieniNomeFormattato(bool isItaliano) {
+    // 1. Prende il nome dal token, se nullo usa il fallback
+    final String nomeCompleto = _auth.currentUser?.displayName ?? (isItaliano ? 'Utente' : 'User');
+
+    // 2. Esegue la logica di business (estrarre solo il primo nome)
+    return nomeCompleto.split(' ').first;
+  }
 }

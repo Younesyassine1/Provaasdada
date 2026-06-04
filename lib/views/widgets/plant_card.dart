@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import '../../models/entities/pianta.dart';
 import '../../core/utils/app_strings.dart';
 
+// IMPORTANTE: Importiamo il nuovo widget che abbiamo appena creato!
+import 'bottone_azione_timer.dart';
+
 class PlantCard extends StatelessWidget {
   final Pianta pianta;
   final Lingua linguaAttuale;
   final VoidCallback onAnnaffia;
   final VoidCallback onPulisci;
-  final VoidCallback onElimina; // NUOVO: Callback per eliminare
+  final VoidCallback onElimina;
+  final VoidCallback onCambiaPosizione;
 
   const PlantCard({
     Key? key,
@@ -16,10 +20,13 @@ class PlantCard extends StatelessWidget {
     required this.onAnnaffia,
     required this.onPulisci,
     required this.onElimina,
+    required this.onCambiaPosizione,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final isIt = linguaAttuale == Lingua.it;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
@@ -32,7 +39,6 @@ class PlantCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ZONA SUPERIORE: FOTO DELLA PIANTA + BOTTONE ELIMINA
           Stack(
             children: [
               Container(
@@ -42,7 +48,6 @@ class PlantCard extends StatelessWidget {
                   color: Color(0xFFE8F5E9),
                   borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
                 ),
-                // Se abbiamo l'URL della foto, mostriamola, altrimenti mostriamo l'emoji
                 child: pianta.immagineUrl != null
                     ? ClipRRect(
                   borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
@@ -52,7 +57,6 @@ class PlantCard extends StatelessWidget {
                 )
                     : const Center(child: Text('🌿', style: TextStyle(fontSize: 60))),
               ),
-              // Il cestino in alto a destra
               Positioned(
                 top: 10,
                 right: 10,
@@ -67,7 +71,6 @@ class PlantCard extends StatelessWidget {
             ],
           ),
 
-          // ZONA INFERIORE: TESTI E AZIONI
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -75,36 +78,40 @@ class PlantCard extends StatelessWidget {
               children: [
                 Text(pianta.nomeComune, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
                 Text('Specie: ${pianta.specie}', style: const TextStyle(fontSize: 14, color: Colors.black54, fontStyle: FontStyle.italic)),
+                const SizedBox(height: 10),
+
+                ActionChip(
+                  avatar: Icon(pianta.isDaEsterno ? Icons.park : Icons.home, size: 16, color: pianta.isDaEsterno ? Colors.green.shade800 : Colors.blue.shade800),
+                  label: Text(pianta.isDaEsterno
+                      ? (isIt ? 'Esterno' : 'Outdoor')
+                      : (isIt ? 'Interno' : 'Indoor'),
+                      style: TextStyle(color: pianta.isDaEsterno ? Colors.green.shade900 : Colors.blue.shade900, fontWeight: FontWeight.bold)
+                  ),
+                  backgroundColor: pianta.isDaEsterno ? Colors.green.shade100 : Colors.blue.shade100,
+                  side: BorderSide.none,
+                  onPressed: onCambiaPosizione,
+                  tooltip: isIt ? 'Tocca per spostare la pianta' : 'Tap to move plant',
+                ),
                 const SizedBox(height: 15),
 
-                // Bottoni Azione
+                // -- CHIAMATA AI DUE WIDGET ESTERNI ANIMATI --
                 Row(
                   children: [
                     Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE3F2FD),
-                          foregroundColor: const Color(0xFF1976D2),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        icon: const Icon(Icons.water_drop, size: 16),
-                        label: Text(AppTesti.get('btn_annaffia', linguaAttuale)),
-                        onPressed: onAnnaffia,
+                      child: BottoneAzioneTimer(
+                        pianta: pianta,
+                        tipo: TipoAzione.acqua,
+                        linguaAttuale: linguaAttuale,
+                        onAzione: onAnnaffia,
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFF3E0),
-                          foregroundColor: const Color(0xFFE65100),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        icon: const Icon(Icons.cleaning_services, size: 16),
-                        label: Text(AppTesti.get('btn_pulizia', linguaAttuale)),
-                        onPressed: onPulisci,
+                      child: BottoneAzioneTimer(
+                        pianta: pianta,
+                        tipo: TipoAzione.pulizia,
+                        linguaAttuale: linguaAttuale,
+                        onAzione: onPulisci,
                       ),
                     ),
                   ],

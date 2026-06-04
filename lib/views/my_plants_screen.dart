@@ -3,7 +3,7 @@ import '../controllers/piante_controller.dart';
 import '../controllers/language_controller.dart';
 import '../core/utils/app_strings.dart';
 import '../models/entities/pianta.dart';
-import 'widgets/plant_card.dart'; // Import corretto del mattoncino
+import 'widgets/plant_card.dart';
 
 class MyPlantsScreen extends StatefulWidget {
   const MyPlantsScreen({Key? key}) : super(key: key);
@@ -37,9 +37,9 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
 
   void _eseguiPulizia(Pianta pianta) {
     debugPrint("UI: Richiesta pulizia per ${pianta.nomeComune}");
+    _controller.pulisciPianta(pianta);
   }
 
-  // NUOVO METODO: Gestisce l'eliminazione della pianta dal database
   void _eseguiEliminazione(Pianta pianta, Lingua linguaAttuale) {
     _controller.eliminaPianta(pianta.id);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -103,7 +103,7 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 Text(
-                    linguaAttuale == Lingua.it ? 'La tua serra virtuale offline' : 'Your offline virtual greenhouse',
+                    linguaAttuale == Lingua.it ? 'La tua serra virtuale cloud' : 'Your cloud virtual greenhouse',
                     style: const TextStyle(fontSize: 13, color: Colors.white70)
                 ),
               ],
@@ -132,21 +132,24 @@ class _MyPlantsScreenState extends State<MyPlantsScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(
-              height: 380, // Aumentato leggermente l'altezza per ospitare la foto comodamente
+              height: 420, // Leggermente rialzato per far spazio all'ActionChip
               child: PageView.builder(
                 controller: _pageController,
                 onPageChanged: (index) => setState(() => _paginaCorrente = index),
                 itemCount: listaPiante.length,
                 itemBuilder: (context, index) {
                   final pianta = listaPiante[index];
-                  // CORREZIONE: Usa PlantCard invece di PiantaCard
+
                   return PlantCard(
                     pianta: pianta,
                     linguaAttuale: linguaAttuale,
                     onAnnaffia: () => _eseguiAnnaffiatura(pianta),
                     onPulisci: () => _eseguiPulizia(pianta),
-                    // CORREZIONE: Passa il metodo di eliminazione
                     onElimina: () => _eseguiEliminazione(pianta, linguaAttuale),
+                    // COLLEGHIAMO LA FUNZIONE PER INVERTIRE LO STATO INTERNO/ESTERNO
+                    onCambiaPosizione: () {
+                      _controller.cambiaPosizionePianta(pianta, !pianta.isDaEsterno);
+                    },
                   );
                 },
               ),

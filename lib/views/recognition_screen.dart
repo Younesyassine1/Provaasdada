@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/network/botanica_facade.dart';
-import '../controllers/piante_controller.dart'; // NUOVO IMPORT
+import '../controllers/piante_controller.dart';
 import '../models/entities/pianta.dart';
 import '../controllers/language_controller.dart';
 import '../core/utils/app_strings.dart';
@@ -17,17 +17,15 @@ class RecognitionScreen extends StatefulWidget {
 class _RecognitionScreenState extends State<RecognitionScreen> {
   final LinguaController _linguaController = LinguaController();
   final BotanicaFacade _botanicaFacade = BotanicaFacade();
-  final PianteController _pianteController = PianteController(); // SOSTITUISCE IL VECCHIO SQLITE HELPER
+  final PianteController _pianteController = PianteController();
 
   File? _immagineCatturata;
   bool _isLoading = false;
   Pianta? _piantaIdentificata;
   String _messaggioStato = "";
 
-  // Metodo per aprire la fotocamera
   Future<void> _scattaFoto() async {
     final ImagePicker picker = ImagePicker();
-    // Apre la fotocamera nativa del telefono
     final XFile? foto = await picker.pickImage(source: ImageSource.camera);
 
     if (foto != null) {
@@ -39,20 +37,17 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
     }
   }
 
-  // Logica che unisce PlantNet e Trefle
   Future<void> _avviaRiconoscimento() async {
     setState(() {
       _isLoading = true;
       _messaggioStato = "Analisi PlantNet in corso...";
     });
 
-    // 1. PlantNet
     final nomeScientifico = await _botanicaFacade.identificaDaFoto(_immagineCatturata!);
 
     if (nomeScientifico != null) {
       setState(() => _messaggioStato = "Ricerca dettagli su Trefle per: $nomeScientifico...");
 
-      // 2. Trefle
       final dettagli = await _botanicaFacade.ottieniDettagliDaTrefle(nomeScientifico);
 
       setState(() {
@@ -67,44 +62,91 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
     }
   }
 
-  // --- METODO AGGIORNATO PER IL CLOUD ---
-  void _salvaInSerra() async {
-    if (_piantaIdentificata != null) {
-      try {
-        debugPrint("Tentativo di salvataggio nel Cloud...");
+  // 1. Mostra il menu dal basso per scegliere la posizione
+  void _scegliPosizioneESalva(Lingua lingua) {
+    if (_piantaIdentificata == null) return;
+    final isIt = lingua == Lingua.it;
 
-        // 1. Prova a salvare su Firebase tramite il Controller
-        await _pianteController.salvaPianta(_piantaIdentificata!);
+    showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (ctx) {
+          return Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                    isIt ? 'Dove posizionerai questa pianta?' : 'Where will you place this plant?',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade50, foregroundColor: Colors.blue.shade800, padding: const EdgeInsets.symmetric(vertical: 15)),
+                        icon: const Icon(Icons.home),
+                        label: Text(isIt ? 'In Casa' : 'Indoor'),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _eseguiSalvataggioNelDatabase(false); // isDaEsterno = false
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade50, foregroundColor: Colors.green.shade800, padding: const EdgeInsets.symmetric(vertical: 15)),
+                        icon: const Icon(Icons.park),
+                        label: Text(isIt ? 'All\'aperto' : 'Outdoor'),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _eseguiSalvataggioNelDatabase(true); // isDaEsterno = true
+                        },
+                      ),
+                    ),
+                  ],
+                )
+              ],
+            ),
+          );
+        }
+    );
+  }
 
-        if (!mounted) return;
+  // 2. Il salvataggio su Firebase con gestione degli errori per i doppioni
+  void _eseguiSalvataggioNelDatabase(bool isEsterno) async {
+    final piantaPronta = _piantaIdentificata!.copiaCon(isDaEsterno: isEsterno);
 
-        // 2. Successo! Mostra banner verde e torna indietro
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Pianta salvata con successo nella tua Serra Cloud!', style: TextStyle(color: Colors.white)),
-              backgroundColor: Colors.green
-          ),
-        );
-        Navigator.pop(context);
+    try {
+      await _pianteController.salvaPianta(piantaPronta);
 
-      } catch (e) {
-        // 3. ERRORE
-        debugPrint("ERRORE GRAVE DURANTE IL SALVATAGGIO CLOUD: $e");
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore connessione Cloud: $e', style: const TextStyle(color: Colors.white)),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pianta aggiunta alla tua Serra!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
+      Navigator.pop(context);
+
+    } catch (e) {
+      if (!mounted) return;
+
+      // Se l'errore contiene la nostra frase personalizzata, sappiamo che è un doppione
+      final isDoppione = e.toString().contains("già questa pianta");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isDoppione
+              ? '🌿 Possiedi già questa pianta nella tua serra!'
+              : 'Errore Cloud: $e',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          backgroundColor: isDoppione ? Colors.orange.shade700 : Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Rendiamo la schermata reattiva alla lingua globale
     return ValueListenableBuilder<Lingua>(
       valueListenable: _linguaController.linguaCorrente,
       builder: (context, linguaAttuale, child) {
@@ -122,7 +164,6 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Anteprima Fotocamera / Foto Scattata
                   Container(
                     height: 300,
                     width: double.infinity,
@@ -153,18 +194,15 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
 
                   const SizedBox(height: 30),
 
-                  // Stato del caricamento
                   if (_isLoading) ...[
                     const CircularProgressIndicator(color: Color(0xFF2E7D32)),
                     const SizedBox(height: 15),
                     Text(_messaggioStato, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
                   ],
 
-                  // Errore
                   if (!_isLoading && _immagineCatturata != null && _piantaIdentificata == null)
                     Text(_messaggioStato, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
 
-                  // Risultato dell'identificazione
                   if (_piantaIdentificata != null && !_isLoading) ...[
                     Text(
                         linguaAttuale == Lingua.it ? '🌿 Identificazione Completata!' : '🌿 Identification Complete!',
@@ -172,7 +210,6 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                     ),
                     const SizedBox(height: 15),
 
-                    // Scheda del Risultato
                     Card(
                       elevation: 4,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -180,7 +217,6 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                         padding: const EdgeInsets.all(20.0),
                         child: Column(
                           children: [
-                            // Immagine ufficiale su Trefle
                             if (_piantaIdentificata!.immagineUrl != null) ...[
                               CircleAvatar(
                                 radius: 40,
@@ -206,14 +242,12 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // --- I DUE BOTTONI: ANNULLA e SALVA ---
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () {
                               setState(() {
-                                // Resetta la schermata senza salvare
                                 _piantaIdentificata = null;
                                 _immagineCatturata = null;
                                 _messaggioStato = "";
@@ -231,7 +265,8 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                         const SizedBox(width: 15),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _salvaInSerra,
+                            // CAMBIATO: Ora apre il BottomSheet invece di salvare subito
+                            onPressed: () => _scegliPosizioneESalva(linguaAttuale),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF2E7D32),
                               foregroundColor: Colors.white,
@@ -243,7 +278,6 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                         ),
                       ],
                     ),
-                    // ----------------------------------------
                   ]
                 ],
               ),

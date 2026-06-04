@@ -5,36 +5,27 @@ import 'package:geolocator/geolocator.dart';
 import '../../models/entities/fioraio.dart';
 import '../services/location_service.dart';
 
-class LogisticaFacade {
+class OsmFacade {
   final LocationService _locationService = LocationService();
 
   Future<Map<String, dynamic>> trovaFioraiVicini() async {
     try {
+      // 1. Otteniamo la posizione (Precisione alta per la mappa)
       final posizione = await _locationService.ottieniPosizioneAttuale(precisione: LocationAccuracy.high);
 
-      final String query = '''
+      // 2. Query Overpass QL: cerca "shop=florist" entro 5000 metri.
+      // [out:json] restituisce JSON, 'out center' serve per trovare il centro geometrico degli edifici.
+      final query = '''
         [out:json][timeout:25];
         nwr["shop"="florist"](around:5000,${posizione.latitude},${posizione.longitude});
         out center;
       ''';
 
-      final url = Uri.parse('https://overpass-api.de/api/interpreter');
-
-      // --- LA SOLUZIONE ALL'ERRORE 406 ---
-      // Aggiungiamo gli "Headers" per presentarci formalmente al server di OpenStreetMap.
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json', // Diciamo al server che accettiamo solo risposte JSON
-          'User-Agent': 'FloraLensApp/1.0 (Flutter)', // Dichiariamo chi siamo (Regola d'oro di OSM)
-        },
-        body: 'data=${Uri.encodeComponent(query)}',
-      );
+      final url = Uri.parse('https://overpass-api.de/api/interpreter?data=${Uri.encodeComponent(query)}');
+      final response = await http.get(url);
 
       if (response.statusCode != 200) {
-        debugPrint("ERRORE OVERPASS SERVER: ${response.statusCode} - ${response.body}");
-        throw Exception('Errore ${response.statusCode} dal server mappe. Riprova tra poco.');
+        throw Exception('Errore di connessione a Overpass API.');
       }
 
       final jsonDati = jsonDecode(response.body);
@@ -51,7 +42,7 @@ class LogisticaFacade {
             );
             listaFiorai.add(fioraioValidato);
           } catch (e) {
-            debugPrint('Fioraio scartato per dati non validi: $e');
+            debugPrint('Fioraio scartato: $e'); // Ignoriamo i nodi corrotti e salviamo gli altri
           }
         }
       }
@@ -65,7 +56,7 @@ class LogisticaFacade {
       };
 
     } catch (e) {
-      debugPrint("Errore nel LogisticaFacade: $e");
+      debugPrint("Errore in OsmFacade: $e");
       rethrow;
     }
   }
