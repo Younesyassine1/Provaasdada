@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // 1. AGGIUNGI QUESTO IMPORT
 import 'firebase_options.dart';
 
 import 'views/Auth/login_screen.dart';
@@ -9,9 +10,14 @@ import 'views/dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. CARICA IL FILE .ENV QUI (Prima di Firebase o altre configurazioni)
+  await dotenv.load(fileName: ".env");
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   // Avvolgiamo l'app in ProviderScope per abilitare Riverpod
   runApp(const ProviderScope(child: FloraLensApp()));
 }
