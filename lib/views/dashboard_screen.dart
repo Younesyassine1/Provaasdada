@@ -1,148 +1,112 @@
 import 'package:flutter/material.dart';
-import '../controllers/auth_controller.dart';
-import '../controllers/language_controller.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/providers/app_providers.dart';
 import '../core/utils/app_strings.dart';
-
-// Importiamo i Widget personalizzati
 import 'widgets/menu_button.dart';
 import 'widgets/meteo_banner.dart';
-
-// Importiamo le schermate funzionanti a cui portano i bottoni
 import 'recognition_screen.dart';
 import 'my_plants_screen.dart';
-import 'fiorai_screen.dart'; // <-- IMPORTANTE: Aggiunto l'import per la mappa!
+import 'fiorai_screen.dart';
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({Key? key}) : super(key: key);
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final linguaCtrl = ref.watch(linguaProvider);
+    final authCtrl = ref.watch(authProvider);
 
-class _DashboardScreenState extends State<DashboardScreen> {
-  final LinguaController _linguaController = LinguaController();
-  final AuthController _authController = AuthController();
-
-  void _apriRiconoscimento() {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => const RecognitionScreen()));
-  }
-
-  void _apriMiaSerra() {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => const MyPlantsScreen()));
-  }
-
-  // LA FUNZIONE È STATA AGGIORNATA: Ora apre la vera schermata della mappa!
-  void _apriMappaFiorai() {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => const FioraiScreen()));
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return ValueListenableBuilder<Lingua>(
-      valueListenable: _linguaController.linguaCorrente,
+      valueListenable: linguaCtrl.linguaCorrente,
       builder: (context, linguaAttuale, child) {
-
         final isIt = linguaAttuale == Lingua.it;
-        final String primoNome = _authController.ottieniNomeFormattato(isIt);
+        final primoNome = authCtrl.ottieniNomeFormattato(isIt);
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF8F9FA),
-          body: SafeArea(
-            child: Column(
-              children: [
-                // 1. HEADER VERDE
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF43A047),
+          backgroundColor: Theme.of(context).colorScheme.background,
+          body: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 200.0,
+                floating: false,
+                pinned: true,
+                backgroundColor: const Color(0xFF2E7D32),
+                elevation: 0,
+                flexibleSpace: FlexibleSpaceBar(
+                  titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+                  title: Text(
+                    isIt ? 'Ciao, $primoNome! 🌿' : 'Hi, $primoNome! 🌿',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  background: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'FloraLens',
-                            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isIt ? 'Ciao $primoNome, bentornato!' : 'Hi $primoNome, welcome back!',
-                            style: const TextStyle(fontSize: 16, color: Colors.white),
-                          ),
-                        ],
+                      Image.network(
+                        'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?q=80&w=800&auto=format&fit=crop',
+                        fit: BoxFit.cover,
                       ),
-                      // Bandierina Lingua in alto a destra
-                      GestureDetector(
-                        onTap: () {
-                          _linguaController.linguaCorrente.value = isIt ? Lingua.en : Lingua.it;
-                        },
-                        child: Text(isIt ? '🇮🇹' : '🇬🇧', style: const TextStyle(fontSize: 26)),
+                      Container(color: Colors.black.withOpacity(0.4)),
+                    ],
+                  ),
+                ),
+                actions: [
+                  GestureDetector(
+                    onTap: () => linguaCtrl.toggleLingua(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 20.0),
+                      child: Center(child: Text(isIt ? '🇮🇹' : '🇬🇧', style: const TextStyle(fontSize: 24))),
+                    ),
+                  ),
+                ],
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      MeteoBanner(linguaAttuale: linguaAttuale),
+                      const SizedBox(height: 20),
+                      MenuButton(
+                        icona: Icons.document_scanner_rounded,
+                        coloreBg: Colors.green.shade100,
+                        coloreIcona: Colors.green.shade800,
+                        titolo: isIt ? 'Riconoscimento' : 'Recognition',
+                        sottotitolo: isIt ? 'Identifica una pianta con AI' : 'Identify a plant with AI',
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecognitionScreen())),
+                      ),
+                      const SizedBox(height: 15),
+                      MenuButton(
+                        icona: Icons.map_rounded,
+                        coloreBg: Colors.blue.shade100,
+                        coloreIcona: Colors.blue.shade800,
+                        titolo: isIt ? 'Trova Fioraio' : 'Find Florist',
+                        sottotitolo: isIt ? 'Esplora vivai vicini' : 'Explore nearby nurseries',
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FioraiScreen())),
+                      ),
+                      const SizedBox(height: 15),
+                      MenuButton(
+                        icona: Icons.local_florist_rounded,
+                        coloreBg: Colors.orange.shade100,
+                        coloreIcona: Colors.orange.shade800,
+                        titolo: AppTesti.get('btn_le_mie_piante', linguaAttuale),
+                        sottotitolo: isIt ? 'Gestisci la tua serra' : 'Manage your greenhouse',
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyPlantsScreen())),
+                      ),
+                      const SizedBox(height: 30),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () async => await authCtrl.esci(),
+                          icon: const Icon(Icons.logout, color: Colors.redAccent),
+                          label: Text(isIt ? 'Esci dall\'account' : 'Log out', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                        ),
                       ),
                     ],
                   ),
                 ),
-
-                // 2. CORPO DELLA DASHBOARD
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 10),
-
-                        MenuButton(
-                          icona: '📷',
-                          titolo: isIt ? 'Riconoscimento' : 'Recognition',
-                          sottotitolo: isIt ? 'Identifica una pianta' : 'Identify a plant',
-                          onTap: _apriRiconoscimento,
-                        ),
-                        const SizedBox(height: 15),
-
-                        MenuButton(
-                          icona: '📍',
-                          titolo: isIt ? 'Trova Fioraio' : 'Find Florist',
-                          sottotitolo: isIt ? 'Cerca vivai vicini' : 'Search nearby nurseries',
-                          onTap: _apriMappaFiorai, // Collegato correttamente senza parametri extra
-                        ),
-                        const SizedBox(height: 15),
-
-                        MenuButton(
-                          icona: '🪴',
-                          titolo: isIt ? 'Le Mie Piante' : 'My Plants',
-                          sottotitolo: isIt ? 'Vedi la tua serra locale' : 'View your local greenhouse',
-                          onTap: _apriMiaSerra,
-                        ),
-
-                        const SizedBox(height: 15),
-
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            onPressed: () async {
-                              await _authController.esci();
-                            },
-                            icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
-                            label: Text(
-                              isIt ? 'Esci dall\'account' : 'Log out',
-                              style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 15),
-                            ),
-                          ),
-                        ),
-
-                        const Spacer(),
-
-                        // 3. WIDGET METEO DINAMICO
-                        MeteoBanner(linguaAttuale: linguaAttuale),
-
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

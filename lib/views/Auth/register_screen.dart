@@ -1,190 +1,151 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/app_strings.dart';
-import '../../controllers/auth_controller.dart';
-import '../../controllers/language_controller.dart';
+import '../../core/providers/app_providers.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/flag_language_button.dart';
 
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
-  // Controller per i campi di testo
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final TextEditingController _nomeController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confermaPasswordController = TextEditingController();
+  final TextEditingController _confermaController = TextEditingController();
 
-  // Istanze dei nostri gestori (Singleton)
-  final AuthController _authController = AuthController();
-  final LinguaController _linguaController = LinguaController();
-
-  @override
-  void dispose() {
-    _nomeController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confermaPasswordController.dispose();
-    super.dispose();
-  }
-
-  // --- LOGICA DI REGISTRAZIONE ---
   void _eseguiRegistrazione(Lingua linguaAttuale) async {
-    final String nome = _nomeController.text.trim();
-    final String email = _emailController.text.trim();
-    final String password = _passwordController.text;
-    final String confermaPassword = _confermaPasswordController.text;
+    final authCtrl = ref.read(authProvider);
+    if (_passwordController.text != _confermaController.text) return;
 
-    // 1. Validazione Campi Vuoti
-    if (nome.isEmpty || email.isEmpty || password.isEmpty) {
-      _mostraMessaggio(AppTesti.get('err_campi_vuoti', linguaAttuale), isErrore: true);
-      return;
-    }
-
-    // 2. Validazione Regex Email
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(email)) {
-      _mostraMessaggio(AppTesti.get('err_email_non_valida', linguaAttuale), isErrore: true);
-      return;
-    }
-
-    // 3. Validazione Regex Password (Min 8 char, 1 maiuscola, 1 minuscola, 1 numero, 1 char speciale)
-    final passwordRegex = RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[\W_]).{8,}$');
-    if (!passwordRegex.hasMatch(password)) {
-      _mostraMessaggio(AppTesti.get('err_password_regex', linguaAttuale), isErrore: true);
-      return;
-    }
-
-    // 4. Validazione Corrispondenza Password
-    if (password != confermaPassword) {
-      _mostraMessaggio(AppTesti.get('err_password_no_match', linguaAttuale), isErrore: true);
-      return;
-    }
-
-    // 5. Delega al Controller
-    final successo = await _authController.registra(
-      nome: nome,
-      email: email,
-      password: password,
+    final successo = await authCtrl.registra(
+      nome: _nomeController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
     );
 
-    if (!mounted) return;
-
-    if (successo) {
-      // Registrazione avvenuta: torna al Login
-      _mostraMessaggio(AppTesti.get('succ_registrazione', linguaAttuale));
-      Navigator.pop(context);
-    } else {
-      // Errore: l'email esiste giÃ
-      _mostraMessaggio(AppTesti.get('err_email_esistente', linguaAttuale), isErrore: true);
-    }
+    if (successo && mounted) Navigator.pop(context);
   }
 
-  // Helper per mostrare messaggi (SnackBar)
-  void _mostraMessaggio(String messaggio, {bool isErrore = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(messaggio, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isErrore ? Colors.red.shade600 : Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  // --- INTERFACCIA GRAFICA ---
   @override
   Widget build(BuildContext context) {
-    // Ascoltatore Reattivo della Lingua
+    final linguaCtrl = ref.watch(linguaProvider);
+
     return ValueListenableBuilder<Lingua>(
-      valueListenable: _linguaController.linguaCorrente,
+      valueListenable: linguaCtrl.linguaCorrente,
       builder: (context, linguaAttuale, child) {
-
         return Scaffold(
-          backgroundColor: const Color(0xFFE0E5EC),
-
-          // AppBar con tasto indietro di default + bandiera affiancata
+          extendBodyBehindAppBar: true,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            iconTheme: const IconThemeData(color: Color(0xFF2E7D32)),
-            // Inseriamo la bandiera subito dopo il tasto indietro annullando lo spazio standard
-            titleSpacing: 0,
-            centerTitle: false,
-            title: Row(
-              children: [
-                FlagLanguageButton(linguaAttuale: linguaAttuale),
-              ],
-            ),
+            iconTheme: const IconThemeData(color: Colors.white),
           ),
-
-          // Corpo centrale
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          body: Container(
+            // --- GRADIENT SCURO ---
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF2E7D32), // Verde foresta intenso (Top Left)
+                  Color(0xFF0B210B), // Verde scurissimo, quasi nero (Bottom Right)
+                ],
+              ),
+            ),
+            child: SafeArea(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Titolo
-                  Text(
-                    AppTesti.get('auth_crea_account', linguaAttuale),
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: FlagLanguageButton(linguaAttuale: linguaAttuale),
+                    ),
                   ),
-                  const SizedBox(height: 40),
-
-                  // Form di registrazione
-                  CustomTextField(
-                    hintTesto: AppTesti.get('auth_nome', linguaAttuale),
-                    icona: Icons.person_outline,
-                    controller: _nomeController,
-                  ),
-                  const SizedBox(height: 15),
-                  CustomTextField(
-                    hintTesto: AppTesti.get('auth_email', linguaAttuale),
-                    icona: Icons.email_outlined,
-                    controller: _emailController,
-                  ),
-                  const SizedBox(height: 15),
-                  CustomTextField(
-                    hintTesto: AppTesti.get('auth_password', linguaAttuale),
-                    icona: Icons.lock_outline,
-                    isPassword: true,
-                    controller: _passwordController,
-                  ),
-                  const SizedBox(height: 15),
-                  CustomTextField(
-                    hintTesto: AppTesti.get('auth_conferma_password', linguaAttuale),
-                    icona: Icons.lock_reset,
-                    isPassword: true,
-                    controller: _confermaPasswordController,
-                  ),
-                  const SizedBox(height: 40),
-
-                  // Bottone Registrati dinamico
-                  SizedBox(
-                    width: double.infinity,
-                    child: ValueListenableBuilder<bool>(
-                        valueListenable: _authController.isLoading,
-                        builder: (context, isLoading, child) {
-                          return ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF4CAF50),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(30),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              padding: const EdgeInsets.all(30),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(color: Colors.white.withOpacity(0.3)),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    AppTesti.get('auth_crea_account', linguaAttuale),
+                                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 30),
+                                  CustomTextField(
+                                      hintTesto: AppTesti.get('auth_nome', linguaAttuale),
+                                      icona: Icons.person_outline,
+                                      controller: _nomeController
+                                  ),
+                                  const SizedBox(height: 15),
+                                  CustomTextField(
+                                      hintTesto: AppTesti.get('auth_email', linguaAttuale),
+                                      icona: Icons.email_outlined,
+                                      controller: _emailController
+                                  ),
+                                  const SizedBox(height: 15),
+                                  CustomTextField(
+                                      hintTesto: AppTesti.get('auth_password', linguaAttuale),
+                                      icona: Icons.lock_outline,
+                                      isPassword: true,
+                                      controller: _passwordController
+                                  ),
+                                  const SizedBox(height: 15),
+                                  CustomTextField(
+                                      hintTesto: AppTesti.get('auth_conferma_password', linguaAttuale),
+                                      icona: Icons.lock_reset,
+                                      isPassword: true,
+                                      controller: _confermaController
+                                  ),
+                                  const SizedBox(height: 30),
+                                  ValueListenableBuilder<bool>(
+                                      valueListenable: ref.read(authProvider).isLoading,
+                                      builder: (context, isLoading, _) {
+                                        return SizedBox(
+                                          width: double.infinity,
+                                          height: 55,
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.white,
+                                              foregroundColor: const Color(0xFF2E7D32),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                            ),
+                                            onPressed: isLoading ? null : () => _eseguiRegistrazione(linguaAttuale),
+                                            child: isLoading
+                                                ? const CircularProgressIndicator(color: Color(0xFF2E7D32))
+                                                : Text(
+                                                AppTesti.get('btn_registrati', linguaAttuale),
+                                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                  ),
+                                ],
+                              ),
                             ),
-                            onPressed: isLoading ? null : () => _eseguiRegistrazione(linguaAttuale),
-                            child: isLoading
-                                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                                : Text(
-                              AppTesti.get('btn_registrati', linguaAttuale),
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                          );
-                        }
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],

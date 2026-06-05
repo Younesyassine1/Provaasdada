@@ -1,170 +1,147 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/app_strings.dart';
-import '../../controllers/auth_controller.dart';
-import '../../controllers/language_controller.dart';
+import '../../core/providers/app_providers.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/flag_language_button.dart';
 import '../dashboard_screen.dart';
 import 'register_screen.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  // Controller per i campi di testo
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  // Istanze dei nostri gestori (Singleton)
-  final AuthController _authController = AuthController();
-  final LinguaController _linguaController = LinguaController();
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  // --- LOGICA DI ACCESSO ---
   void _eseguiLogin(Lingua linguaAttuale) async {
-    final String emailInserita = _emailController.text.trim();
-    final String passwordInserita = _passwordController.text;
+    final authCtrl = ref.read(authProvider);
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-    // Controllo campi vuoti
-    if (emailInserita.isEmpty || passwordInserita.isEmpty) {
-      _mostraMessaggio(AppTesti.get('err_campi_vuoti', linguaAttuale), isErrore: true);
-      return;
-    }
+    if (email.isEmpty || password.isEmpty) return;
 
-    // Delega al Controller
-    final successo = await _authController.login(
-      email: emailInserita,
-      password: passwordInserita,
-    );
-
+    final successo = await authCtrl.login(email: email, password: password);
     if (!mounted) return;
 
     if (successo) {
-      // Login effettuato con successo: Navigazione verso la Dashboard
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const DashboardScreen()),
       );
-    } else {
-      // Credenziali errate
-      _mostraMessaggio(AppTesti.get('err_credenziali_errate', linguaAttuale), isErrore: true);
     }
   }
 
-  // Helper per mostrare messaggi (SnackBar)
-  void _mostraMessaggio(String messaggio, {bool isErrore = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(messaggio, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isErrore ? Colors.red.shade600 : Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  // --- INTERFACCIA GRAFICA ---
   @override
   Widget build(BuildContext context) {
-    // Ascoltatore Reattivo della Lingua
+    final linguaCtrl = ref.watch(linguaProvider);
+
     return ValueListenableBuilder<Lingua>(
-      valueListenable: _linguaController.linguaCorrente,
+      valueListenable: linguaCtrl.linguaCorrente,
       builder: (context, linguaAttuale, child) {
-
         return Scaffold(
-          backgroundColor: const Color(0xFFE0E5EC),
-
-          // AppBar trasparente con la bandiera in alto a sinistra
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: FlagLanguageButton(linguaAttuale: linguaAttuale),
-          ),
-
-          // Corpo centrale
-          body: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          body: Container(
+            // --- GRADIENT SCURO ---
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF2E7D32), // Verde foresta intenso (Top Left)
+                  Color(0xFF0B210B), // Verde scurissimo, quasi nero (Bottom Right)
+                ],
+              ),
+            ),
+            child: SafeArea(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo
-                  const Icon(Icons.eco, size: 80, color: Color(0xFF2E7D32)),
-                  const SizedBox(height: 20),
-
-                  // Titolo
-                  const Text(
-                    'FloraLens',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
-                  ),
-                  Text(
-                    AppTesti.get('login_sottotitolo', linguaAttuale),
-                    style: const TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 50),
-
-                  // Form di input
-                  CustomTextField(
-                    hintTesto: AppTesti.get('auth_email', linguaAttuale),
-                    icona: Icons.email_outlined,
-                    controller: _emailController,
-                  ),
-                  const SizedBox(height: 15),
-                  CustomTextField(
-                    hintTesto: AppTesti.get('auth_password', linguaAttuale),
-                    icona: Icons.lock_outline,
-                    isPassword: true,
-                    controller: _passwordController,
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Bottone Accedi dinamico
-                  SizedBox(
-                    width: double.infinity,
-                    child: ValueListenableBuilder<bool>(
-                        valueListenable: _authController.isLoading,
-                        builder: (context, isLoading, child) {
-                          return ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2E7D32),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              elevation: 5,
-                            ),
-                            onPressed: isLoading ? null : () => _eseguiLogin(linguaAttuale),
-                            child: isLoading
-                                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                                : Text(
-                              AppTesti.get('btn_accedi', linguaAttuale),
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                          );
-                        }
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: FlagLanguageButton(linguaAttuale: linguaAttuale),
                     ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // Link per la registrazione
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                      );
-                    },
-                    child: Text(
-                      '${AppTesti.get('auth_non_hai_account', linguaAttuale)}${AppTesti.get('btn_registrati', linguaAttuale)}',
-                      style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600),
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(30),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Container(
+                              padding: const EdgeInsets.all(30),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(color: Colors.white.withOpacity(0.3)),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.eco, size: 80, color: Colors.white),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'FloraLens',
+                                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                  const SizedBox(height: 40),
+                                  CustomTextField(
+                                    hintTesto: AppTesti.get('auth_email', linguaAttuale),
+                                    icona: Icons.email_outlined,
+                                    controller: _emailController,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  CustomTextField(
+                                    hintTesto: AppTesti.get('auth_password', linguaAttuale),
+                                    icona: Icons.lock_outline,
+                                    isPassword: true,
+                                    controller: _passwordController,
+                                  ),
+                                  const SizedBox(height: 30),
+                                  ValueListenableBuilder<bool>(
+                                    valueListenable: ref.read(authProvider).isLoading,
+                                    builder: (context, isLoading, _) {
+                                      return SizedBox(
+                                        width: double.infinity,
+                                        height: 55,
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                            foregroundColor: const Color(0xFF2E7D32),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                          ),
+                                          onPressed: isLoading ? null : () => _eseguiLogin(linguaAttuale),
+                                          child: isLoading
+                                              ? const CircularProgressIndicator(color: Color(0xFF2E7D32))
+                                              : Text(
+                                            AppTesti.get('btn_accedi', linguaAttuale),
+                                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 20),
+                                  TextButton(
+                                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                                    child: Text(
+                                      AppTesti.get('auth_non_hai_account', linguaAttuale) + AppTesti.get('btn_registrati', linguaAttuale),
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
