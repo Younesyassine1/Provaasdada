@@ -1,3 +1,6 @@
+// ============================================================
+// FILE: dashboard_screen.dart
+// ============================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers/app_providers.dart';
@@ -19,8 +22,7 @@ class DashboardScreen extends ConsumerWidget {
     return ValueListenableBuilder<Lingua>(
       valueListenable: linguaCtrl.linguaCorrente,
       builder: (context, linguaAttuale, child) {
-        final isIt = linguaAttuale == Lingua.it;
-        final primoNome = authCtrl.ottieniNomeFormattato(isIt);
+        final primoNome = authCtrl.ottieniNomeFormattato(linguaAttuale == Lingua.it);
 
         return Scaffold(
           backgroundColor: Theme.of(context).colorScheme.background,
@@ -36,7 +38,7 @@ class DashboardScreen extends ConsumerWidget {
                 flexibleSpace: FlexibleSpaceBar(
                   titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
                   title: Text(
-                    isIt ? 'Ciao, $primoNome! 🌿' : 'Hi, $primoNome! 🌿',
+                    '${AppTesti.get('dash_saluto', linguaAttuale)}$primoNome${AppTesti.get('dash_saluto_emoji', linguaAttuale)}',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white),
                   ),
                   background: Stack(
@@ -55,7 +57,12 @@ class DashboardScreen extends ConsumerWidget {
                     onTap: () => linguaCtrl.toggleLingua(),
                     child: Padding(
                       padding: const EdgeInsets.only(right: 20.0),
-                      child: Center(child: Text(isIt ? '🇮🇹' : '🇬🇧', style: const TextStyle(fontSize: 24))),
+                      child: Center(
+                        child: Text(
+                          linguaAttuale == Lingua.it ? '🇮🇹' : '🇬🇧',
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -72,8 +79,8 @@ class DashboardScreen extends ConsumerWidget {
                         icona: Icons.document_scanner_rounded,
                         coloreBg: Colors.green.shade100,
                         coloreIcona: Colors.green.shade800,
-                        titolo: isIt ? 'Riconoscimento' : 'Recognition',
-                        sottotitolo: isIt ? 'Identifica una pianta con AI' : 'Identify a plant with AI',
+                        titolo: AppTesti.get('btn_riconoscimento', linguaAttuale),
+                        sottotitolo: AppTesti.get('btn_riconoscimento_sottotitolo', linguaAttuale),
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RecognitionScreen())),
                       ),
                       const SizedBox(height: 15),
@@ -81,8 +88,8 @@ class DashboardScreen extends ConsumerWidget {
                         icona: Icons.map_rounded,
                         coloreBg: Colors.blue.shade100,
                         coloreIcona: Colors.blue.shade800,
-                        titolo: isIt ? 'Trova Fioraio' : 'Find Florist',
-                        sottotitolo: isIt ? 'Esplora vivai vicini' : 'Explore nearby nurseries',
+                        titolo: AppTesti.get('btn_trova_fioraio', linguaAttuale),
+                        sottotitolo: AppTesti.get('btn_trova_fioraio_sottotitolo', linguaAttuale),
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FioraiScreen())),
                       ),
                       const SizedBox(height: 15),
@@ -91,7 +98,7 @@ class DashboardScreen extends ConsumerWidget {
                         coloreBg: Colors.orange.shade100,
                         coloreIcona: Colors.orange.shade800,
                         titolo: AppTesti.get('btn_le_mie_piante', linguaAttuale),
-                        sottotitolo: isIt ? 'Gestisci la tua serra' : 'Manage your greenhouse',
+                        sottotitolo: AppTesti.get('btn_le_mie_piante_sottotitolo', linguaAttuale),
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyPlantsScreen())),
                       ),
                       const SizedBox(height: 30),
@@ -99,7 +106,10 @@ class DashboardScreen extends ConsumerWidget {
                         child: TextButton.icon(
                           onPressed: () async => await authCtrl.esci(),
                           icon: const Icon(Icons.logout, color: Colors.redAccent),
-                          label: Text(isIt ? 'Esci dall\'account' : 'Log out', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                          label: Text(
+                            AppTesti.get('btn_esci', linguaAttuale),
+                            style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
                     ],

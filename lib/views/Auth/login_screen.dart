@@ -1,3 +1,6 @@
+// ============================================================
+// FILE: login_screen.dart
+// ============================================================
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,7 +8,6 @@ import '../../core/utils/app_strings.dart';
 import '../../core/providers/app_providers.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/flag_language_button.dart';
-import '../dashboard_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -19,22 +21,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   void _eseguiLogin(Lingua linguaAttuale) async {
     final authCtrl = ref.read(authProvider);
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    if (email.isEmpty || password.isEmpty) return;
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppTesti.get('err_campi_vuoti', linguaAttuale))),
+      );
+      return;
+    }
 
     final successo = await authCtrl.login(email: email, password: password);
+
     if (!mounted) return;
 
-    if (successo) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+    if (!successo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppTesti.get('err_credenziali_errate', linguaAttuale)),
+          backgroundColor: Colors.red,
+        ),
       );
     }
+    // Navigazione gestita dallo StreamBuilder in main.dart
   }
 
   @override
@@ -46,15 +64,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       builder: (context, linguaAttuale, child) {
         return Scaffold(
           body: Container(
-            // --- GRADIENT SCURO ---
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF2E7D32), // Verde foresta intenso (Top Left)
-                  Color(0xFF0B210B), // Verde scurissimo, quasi nero (Bottom Right)
-                ],
+                colors: [Color(0xFF2E7D32), Color(0xFF0B210B)],
               ),
             ),
             child: SafeArea(
@@ -130,9 +144,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ),
                                   const SizedBox(height: 20),
                                   TextButton(
-                                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                                    onPressed: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                                    ),
                                     child: Text(
-                                      AppTesti.get('auth_non_hai_account', linguaAttuale) + AppTesti.get('btn_registrati', linguaAttuale),
+                                      AppTesti.get('auth_non_hai_account', linguaAttuale) +
+                                          AppTesti.get('btn_registrati', linguaAttuale),
                                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                     ),
                                   ),

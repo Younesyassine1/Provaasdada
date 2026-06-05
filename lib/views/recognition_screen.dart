@@ -1,23 +1,24 @@
+// ============================================================
+// FILE: recognition_screen.dart
+// ============================================================
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/network/botanica_facade.dart';
-import '../controllers/piante_controller.dart';
+import '../core/providers/app_providers.dart';
 import '../models/entities/pianta.dart';
-import '../controllers/language_controller.dart';
 import '../core/utils/app_strings.dart';
 
-class RecognitionScreen extends StatefulWidget {
+class RecognitionScreen extends ConsumerStatefulWidget {
   const RecognitionScreen({Key? key}) : super(key: key);
 
   @override
-  State<RecognitionScreen> createState() => _RecognitionScreenState();
+  ConsumerState<RecognitionScreen> createState() => _RecognitionScreenState();
 }
 
-class _RecognitionScreenState extends State<RecognitionScreen> {
-  final LinguaController _linguaController = LinguaController();
+class _RecognitionScreenState extends ConsumerState<RecognitionScreen> {
   final BotanicaFacade _botanicaFacade = BotanicaFacade();
-  final PianteController _pianteController = PianteController();
 
   File? _immagineCatturata;
   bool _isLoading = false;
@@ -38,15 +39,18 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
   }
 
   Future<void> _avviaRiconoscimento() async {
+    final lingua = ref.read(linguaProvider).linguaCorrente.value;
+
     setState(() {
       _isLoading = true;
-      _messaggioStato = "Analisi PlantNet in corso...";
+      _messaggioStato = AppTesti.get('recognition_analisi_plantnet', lingua);
     });
 
     final nomeScientifico = await _botanicaFacade.identificaDaFoto(_immagineCatturata!);
 
     if (nomeScientifico != null) {
-      setState(() => _messaggioStato = "Ricerca dettagli su Trefle per: $nomeScientifico...");
+      setState(() => _messaggioStato =
+      '${AppTesti.get('recognition_ricerca_trefle', lingua)}$nomeScientifico...');
 
       final dettagli = await _botanicaFacade.ottieniDettagliDaTrefle(nomeScientifico);
 
@@ -57,87 +61,103 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
     } else {
       setState(() {
         _isLoading = false;
-        _messaggioStato = "Impossibile riconoscere la pianta. Riprova con una foto più nitida.";
+        _messaggioStato = AppTesti.get('recognition_impossibile', lingua);
       });
     }
   }
 
-  // 1. Mostra il menu dal basso per scegliere la posizione
-  void _scegliPosizioneESalva(Lingua lingua) {
+  void _scegliPosizioneESalva(Lingua linguaAttuale) {
     if (_piantaIdentificata == null) return;
-    final isIt = lingua == Lingua.it;
 
     showModalBottomSheet(
-        context: context,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-        builder: (ctx) {
-          return Container(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                    isIt ? 'Dove posizionerai questa pianta?' : 'Where will you place this plant?',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade50, foregroundColor: Colors.blue.shade800, padding: const EdgeInsets.symmetric(vertical: 15)),
-                        icon: const Icon(Icons.home),
-                        label: Text(isIt ? 'In Casa' : 'Indoor'),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _eseguiSalvataggioNelDatabase(false); // isDaEsterno = false
-                        },
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                AppTesti.get('recognition_dove_pianta', linguaAttuale),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade50,
+                        foregroundColor: Colors.blue.shade800,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
+                      icon: const Icon(Icons.home),
+                      label: Text(AppTesti.get('recognition_in_casa', linguaAttuale)),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _eseguiSalvataggioNelDatabase(false, linguaAttuale);
+                      },
                     ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade50, foregroundColor: Colors.green.shade800, padding: const EdgeInsets.symmetric(vertical: 15)),
-                        icon: const Icon(Icons.park),
-                        label: Text(isIt ? 'All\'aperto' : 'Outdoor'),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _eseguiSalvataggioNelDatabase(true); // isDaEsterno = true
-                        },
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade50,
+                        foregroundColor: Colors.green.shade800,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
+                      icon: const Icon(Icons.park),
+                      label: Text(AppTesti.get('recognition_aperto', linguaAttuale)),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _eseguiSalvataggioNelDatabase(true, linguaAttuale);
+                      },
                     ),
-                  ],
-                )
-              ],
-            ),
-          );
-        }
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  // 2. Il salvataggio su Firebase con gestione degli errori per i doppioni
-  void _eseguiSalvataggioNelDatabase(bool isEsterno) async {
+  void _eseguiSalvataggioNelDatabase(bool isEsterno, Lingua linguaAttuale) async {
     final piantaPronta = _piantaIdentificata!.copiaCon(isDaEsterno: isEsterno);
+    final pianteCtrl = ref.read(pianteProvider);
 
     try {
-      await _pianteController.salvaPianta(piantaPronta);
+      await pianteCtrl.salvaPianta(piantaPronta);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pianta aggiunta alla tua Serra!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppTesti.get('succ_pianta_aggiunta', linguaAttuale),
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
       Navigator.pop(context);
-
     } catch (e) {
       if (!mounted) return;
 
-      // Se l'errore contiene la nostra frase personalizzata, sappiamo che è un doppione
       final isDoppione = e.toString().contains("già questa pianta");
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isDoppione
-              ? '🌿 Possiedi già questa pianta nella tua serra!'
-              : 'Errore Cloud: $e',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: Text(
+            isDoppione
+                ? AppTesti.get('err_pianta_doppione', linguaAttuale)
+                : '${AppTesti.get('err_generico', linguaAttuale)} $e',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
           backgroundColor: isDoppione ? Colors.orange.shade700 : Colors.red,
           duration: const Duration(seconds: 3),
         ),
@@ -147,14 +167,15 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<Lingua>(
-      valueListenable: _linguaController.linguaCorrente,
-      builder: (context, linguaAttuale, child) {
+    final linguaCtrl = ref.watch(linguaProvider);
 
+    return ValueListenableBuilder<Lingua>(
+      valueListenable: linguaCtrl.linguaCorrente,
+      builder: (context, linguaAttuale, child) {
         return Scaffold(
           backgroundColor: const Color(0xFFE0E5EC),
           appBar: AppBar(
-            title: Text(linguaAttuale == Lingua.it ? 'Riconoscimento Botanico' : 'Botanical Recognition'),
+            title: Text(AppTesti.get('recognition_titolo', linguaAttuale)),
             backgroundColor: const Color(0xFF2E7D32),
             foregroundColor: Colors.white,
           ),
@@ -181,9 +202,12 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                         ElevatedButton.icon(
                           onPressed: _scattaFoto,
                           icon: const Icon(Icons.camera),
-                          label: Text(linguaAttuale == Lingua.it ? 'Scatta Foto' : 'Take a Photo'),
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4CAF50), foregroundColor: Colors.white),
-                        )
+                          label: Text(AppTesti.get('recognition_scatta_foto', linguaAttuale)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4CAF50),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
                       ],
                     )
                         : ClipRRect(
@@ -191,25 +215,31 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                       child: Image.file(_immagineCatturata!, fit: BoxFit.cover),
                     ),
                   ),
-
                   const SizedBox(height: 30),
-
                   if (_isLoading) ...[
                     const CircularProgressIndicator(color: Color(0xFF2E7D32)),
                     const SizedBox(height: 15),
-                    Text(_messaggioStato, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
+                    Text(
+                      _messaggioStato,
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                    ),
                   ],
-
                   if (!_isLoading && _immagineCatturata != null && _piantaIdentificata == null)
-                    Text(_messaggioStato, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
-
+                    Text(
+                      _messaggioStato,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
                   if (_piantaIdentificata != null && !_isLoading) ...[
                     Text(
-                        linguaAttuale == Lingua.it ? '🌿 Identificazione Completata!' : '🌿 Identification Complete!',
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))
+                      AppTesti.get('recognition_completata', linguaAttuale),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2E7D32),
+                      ),
                     ),
                     const SizedBox(height: 15),
-
                     Card(
                       elevation: 4,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -225,23 +255,34 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                               ),
                               const SizedBox(height: 15),
                             ],
-
-                            Text(_piantaIdentificata!.nomeComune, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                            Text('Specie: ${_piantaIdentificata!.specie}', style: const TextStyle(fontStyle: FontStyle.italic)),
+                            Text(
+                              _piantaIdentificata!.nomeComune,
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                            Text(
+                              'Specie: ${_piantaIdentificata!.specie}',
+                              style: const TextStyle(fontStyle: FontStyle.italic),
+                            ),
                             const Divider(height: 30),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                Column(children: [const Icon(Icons.water_drop, color: Colors.blue), Text(_piantaIdentificata!.fabbisognoAcqua)]),
-                                Column(children: [const Icon(Icons.wb_sunny, color: Colors.orange), Text(_piantaIdentificata!.fabbisognoLuce)]),
+                                Column(children: [
+                                  const Icon(Icons.water_drop, color: Colors.blue),
+                                  Text(_piantaIdentificata!.fabbisognoAcqua),
+                                ]),
+                                Column(children: [
+                                  const Icon(Icons.wb_sunny, color: Colors.orange),
+                                  Text(_piantaIdentificata!.fabbisognoLuce),
+                                ]),
                               ],
-                            )
+                            ),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
-
                     Row(
                       children: [
                         Expanded(
@@ -259,13 +300,15 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 15),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
-                            child: Text(linguaAttuale == Lingua.it ? 'Annulla' : 'Cancel', style: const TextStyle(fontSize: 16)),
+                            child: Text(
+                              AppTesti.get('btn_annulla', linguaAttuale),
+                              style: const TextStyle(fontSize: 16),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 15),
                         Expanded(
                           child: ElevatedButton(
-                            // CAMBIATO: Ora apre il BottomSheet invece di salvare subito
                             onPressed: () => _scegliPosizioneESalva(linguaAttuale),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF2E7D32),
@@ -273,12 +316,15 @@ class _RecognitionScreenState extends State<RecognitionScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 15),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
-                            child: Text(linguaAttuale == Lingua.it ? 'Salva in Serra' : 'Save Plant', style: const TextStyle(fontSize: 16)),
+                            child: Text(
+                              AppTesti.get('recognition_salva', linguaAttuale),
+                              style: const TextStyle(fontSize: 16),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ]
+                  ],
                 ],
               ),
             ),

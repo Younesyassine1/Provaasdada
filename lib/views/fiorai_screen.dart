@@ -1,30 +1,30 @@
+// ============================================================
+// FILE: fiorai_screen.dart
+// ============================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:psadassa/views/widgets/fiorai_button_sheet.dart';
-import '../controllers/fiorai_controller.dart';
-import '../controllers/language_controller.dart';
+import '../core/providers/app_providers.dart';
 import '../core/utils/app_strings.dart';
 import '../models/entities/fioraio.dart';
+import 'widgets/fiorai_button_sheet.dart';
 
-
-class FioraiScreen extends StatefulWidget {
+class FioraiScreen extends ConsumerStatefulWidget {
   const FioraiScreen({Key? key}) : super(key: key);
 
   @override
-  State<FioraiScreen> createState() => _FioraiScreenState();
+  ConsumerState<FioraiScreen> createState() => _FioraiScreenState();
 }
 
-class _FioraiScreenState extends State<FioraiScreen> {
-  final LinguaController _linguaController = LinguaController();
-  final FioraiController _controller = FioraiController();
+class _FioraiScreenState extends ConsumerState<FioraiScreen> {
   final MapController _mapController = MapController();
 
   @override
   void initState() {
     super.initState();
-    _controller.caricaDatiMappa().then((_) {
-      if (mounted) setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(fioraiProvider).caricaDatiMappa();
     });
   }
 
@@ -38,21 +38,21 @@ class _FioraiScreenState extends State<FioraiScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<Lingua>(
-      valueListenable: _linguaController.linguaCorrente,
-      builder: (context, linguaAttuale, child) {
-        final isIt = linguaAttuale == Lingua.it;
+    final linguaCtrl = ref.watch(linguaProvider);
+    final fioraiCtrl = ref.watch(fioraiProvider);
 
+    return ValueListenableBuilder<Lingua>(
+      valueListenable: linguaCtrl.linguaCorrente,
+      builder: (context, linguaAttuale, child) {
         return Scaffold(
           appBar: AppBar(
-            title: Text(isIt ? 'Fiorai Vicini' : 'Nearby Florists'),
+            title: Text(AppTesti.get('fiorai_titolo', linguaAttuale)),
             backgroundColor: const Color(0xFF2E7D32),
             foregroundColor: Colors.white,
           ),
           body: ValueListenableBuilder<bool>(
-            valueListenable: _controller.isLoading,
+            valueListenable: fioraiCtrl.isLoading,
             builder: (context, isLoading, child) {
-
               if (isLoading) {
                 return Center(
                   child: Column(
@@ -61,28 +61,43 @@ class _FioraiScreenState extends State<FioraiScreen> {
                       const CircularProgressIndicator(color: Color(0xFF2E7D32)),
                       const SizedBox(height: 20),
                       Text(
-                        isIt ? 'Ricerca fiorai su OpenStreetMap...' : 'Searching florists on OpenStreetMap...',
+                        AppTesti.get('fiorai_caricamento', linguaAttuale),
                         style: const TextStyle(color: Colors.grey),
-                      )
+                      ),
                     ],
                   ),
                 );
               }
 
-              if (_controller.errore.value != null) {
+              if (fioraiCtrl.errore.value != null) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
-                    child: Text(
-                      '${isIt ? "Si e' verificato un errore:" : "An error occurred:"}\n${_controller.errore.value}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${AppTesti.get('err_generico', linguaAttuale)}\n${fioraiCtrl.errore.value}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () => fioraiCtrl.caricaDatiMappa(),
+                          icon: const Icon(Icons.refresh),
+                          label: Text(AppTesti.get('btn_riprova', linguaAttuale)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2E7D32),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
               }
 
-              final utente = _controller.posizioneAttuale!;
+              final utente = fioraiCtrl.posizioneAttuale!;
               final LatLng centroMappa = LatLng(utente.latitude, utente.longitude);
 
               return FlutterMap(
@@ -99,15 +114,13 @@ class _FioraiScreenState extends State<FioraiScreen> {
                   ),
                   MarkerLayer(
                     markers: [
-                      // Marker Utente
                       Marker(
                         point: centroMappa,
                         width: 50,
                         height: 50,
                         child: const Icon(Icons.my_location, color: Colors.blue, size: 30),
                       ),
-                      // Marker Fiorai
-                      ..._controller.listaFiorai.map((fioraio) {
+                      ...fioraiCtrl.listaFiorai.map((fioraio) {
                         return Marker(
                           point: LatLng(fioraio.latitudine, fioraio.longitudine),
                           width: 40,

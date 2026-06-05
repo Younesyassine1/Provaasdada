@@ -1,3 +1,6 @@
+// ============================================================
+// FILE: my_plants_screen.dart
+// ============================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers/app_providers.dart';
@@ -60,7 +63,7 @@ class _MyPlantsScreenState extends ConsumerState<MyPlantsScreen> {
                       Icon(Icons.park_outlined, size: 80, color: Colors.grey.shade400),
                       const SizedBox(height: 20),
                       Text(
-                        linguaAttuale == Lingua.it ? "Non hai ancora piante!" : "No plants yet!",
+                        AppTesti.get('no_piante', linguaAttuale),
                         style: TextStyle(color: Colors.grey.shade600, fontSize: 18),
                       ),
                     ],
@@ -80,7 +83,6 @@ class _MyPlantsScreenState extends ConsumerState<MyPlantsScreen> {
                       itemCount: listaPiante.length,
                       itemBuilder: (context, index) {
                         final pianta = listaPiante[index];
-                        // Animazione scale per la card attiva
                         return AnimatedBuilder(
                           animation: _pageController,
                           builder: (context, child) {
@@ -89,10 +91,7 @@ class _MyPlantsScreenState extends ConsumerState<MyPlantsScreen> {
                               value = _pageController.page! - index;
                               value = (1 - (value.abs() * 0.1)).clamp(0.0, 1.0);
                             }
-                            return Transform.scale(
-                              scale: value,
-                              child: child,
-                            );
+                            return Transform.scale(scale: value, child: child);
                           },
                           child: PlantCard(
                             pianta: pianta,

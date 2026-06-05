@@ -1,8 +1,9 @@
+// ============================================================
+// FILE: plant_card.dart
+// ============================================================
 import 'package:flutter/material.dart';
 import '../../models/entities/pianta.dart';
 import '../../core/utils/app_strings.dart';
-
-// IMPORTANTE: Importiamo il nuovo widget che abbiamo appena creato!
 import 'bottone_azione_timer.dart';
 
 class PlantCard extends StatelessWidget {
@@ -25,8 +26,6 @@ class PlantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isIt = linguaAttuale == Lingua.it;
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
@@ -46,13 +45,22 @@ class PlantCard extends StatelessWidget {
                 width: double.infinity,
                 decoration: const BoxDecoration(
                   color: Color(0xFFE8F5E9),
-                  borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
                 ),
                 child: pianta.immagineUrl != null
                     ? ClipRRect(
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
-                  child: Image.network(pianta.immagineUrl!, fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Center(child: Text('🌿', style: TextStyle(fontSize: 60))),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                  child: Image.network(
+                    pianta.immagineUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                    const Center(child: Text('🌿', style: TextStyle(fontSize: 60))),
                   ),
                 )
                     : const Center(child: Text('🌿', style: TextStyle(fontSize: 60))),
@@ -70,31 +78,41 @@ class PlantCard extends StatelessWidget {
               ),
             ],
           ),
-
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(pianta.nomeComune, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
-                Text('Specie: ${pianta.specie}', style: const TextStyle(fontSize: 14, color: Colors.black54, fontStyle: FontStyle.italic)),
+                Text(
+                  pianta.nomeComune,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+                ),
+                Text(
+                  'Specie: ${pianta.specie}',
+                  style: const TextStyle(fontSize: 14, color: Colors.black54, fontStyle: FontStyle.italic),
+                ),
                 const SizedBox(height: 10),
-
                 ActionChip(
-                  avatar: Icon(pianta.isDaEsterno ? Icons.park : Icons.home, size: 16, color: pianta.isDaEsterno ? Colors.green.shade800 : Colors.blue.shade800),
-                  label: Text(pianta.isDaEsterno
-                      ? (isIt ? 'Esterno' : 'Outdoor')
-                      : (isIt ? 'Interno' : 'Indoor'),
-                      style: TextStyle(color: pianta.isDaEsterno ? Colors.green.shade900 : Colors.blue.shade900, fontWeight: FontWeight.bold)
+                  avatar: Icon(
+                    pianta.isDaEsterno ? Icons.park : Icons.home,
+                    size: 16,
+                    color: pianta.isDaEsterno ? Colors.green.shade800 : Colors.blue.shade800,
+                  ),
+                  label: Text(
+                    pianta.isDaEsterno
+                        ? AppTesti.get('pianta_esterno', linguaAttuale)
+                        : AppTesti.get('pianta_interno', linguaAttuale),
+                    style: TextStyle(
+                      color: pianta.isDaEsterno ? Colors.green.shade900 : Colors.blue.shade900,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   backgroundColor: pianta.isDaEsterno ? Colors.green.shade100 : Colors.blue.shade100,
                   side: BorderSide.none,
                   onPressed: onCambiaPosizione,
-                  tooltip: isIt ? 'Tocca per spostare la pianta' : 'Tap to move plant',
+                  tooltip: AppTesti.get('pianta_sposta_tooltip', linguaAttuale),
                 ),
                 const SizedBox(height: 15),
-
-                // -- CHIAMATA AI DUE WIDGET ESTERNI ANIMATI --
                 Row(
                   children: [
                     Expanded(
@@ -115,10 +133,10 @@ class PlantCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                )
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );

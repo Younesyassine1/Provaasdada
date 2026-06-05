@@ -1,86 +1,71 @@
+// ============================================================
+// FILE: meteo_banner.dart
+// ============================================================
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../controllers/meteo_controller.dart';
-import '../../controllers/language_controller.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/app_providers.dart';
 import '../../core/utils/app_strings.dart';
 
-class MeteoBanner extends StatefulWidget {
+class MeteoBanner extends ConsumerStatefulWidget {
   final Lingua linguaAttuale;
 
   const MeteoBanner({Key? key, required this.linguaAttuale}) : super(key: key);
 
   @override
-  State<MeteoBanner> createState() => _MeteoBannerState();
+  ConsumerState<MeteoBanner> createState() => _MeteoBannerState();
 }
 
-class _MeteoBannerState extends State<MeteoBanner> {
-  final MeteoController _meteoController = MeteoController();
-
+class _MeteoBannerState extends ConsumerState<MeteoBanner> {
   bool _visibile = true;
   Timer? _timerScomparsa;
 
   @override
   void initState() {
     super.initState();
-
-    // 1. Ascoltiamo il controller: appena cambia valore, eseguiamo la nostra funzione
-    _meteoController.pioveOggi.addListener(_gestisciTimer);
-
-    // 2. Avviamo la richiesta API (o il Mocking temporaneo)
-    _meteoController.verificaMeteo();
+    final meteoCtrl = ref.read(meteoProvider);
+    meteoCtrl.pioveOggi.addListener(_gestisciTimer);
+    meteoCtrl.verificaMeteo();
   }
 
   void _gestisciTimer() {
-    // Se il controller ci conferma che oggi piove...
-    if (_meteoController.pioveOggi.value == true) {
-      // ...facciamo partire un conto alla rovescia di 6 secondi!
+    final meteoCtrl = ref.read(meteoProvider);
+    if (meteoCtrl.pioveOggi.value == true) {
       _timerScomparsa = Timer(const Duration(seconds: 6), () {
-        if (mounted) {
-          setState(() {
-            _visibile = false; // Questo innescherà l'animazione di scomparsa
-          });
-        }
+        if (mounted) setState(() => _visibile = false);
       });
     }
   }
 
   @override
   void dispose() {
-    // Pulizia della memoria fondamentale per evitare memory leak
-    _meteoController.pioveOggi.removeListener(_gestisciTimer);
+    ref.read(meteoProvider).pioveOggi.removeListener(_gestisciTimer);
     _timerScomparsa?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool?>(
-      valueListenable: _meteoController.pioveOggi,
-      builder: (context, piove, child) {
+    final meteoCtrl = ref.watch(meteoProvider);
 
-        // 1. STATO: Caricamento in corso
+    return ValueListenableBuilder<bool?>(
+      valueListenable: meteoCtrl.pioveOggi,
+      builder: (context, piove, child) {
         if (piove == null) {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(15.0),
               child: SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4CAF50))
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4CAF50)),
               ),
             ),
           );
         }
 
-        // 2. STATO: Non piove oggi (Invisibile)
-        if (piove == false) {
-          return const SizedBox.shrink();
-        }
+        if (piove == false) return const SizedBox.shrink();
 
-        final isIt = widget.linguaAttuale == Lingua.it;
-
-        // 3. STATO: Pioverà oggi!
-        // Usiamo AnimatedSize per far "collassare" il banner dolcemente quando _visibile diventa false.
         return AnimatedSize(
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
@@ -102,22 +87,20 @@ class _MeteoBannerState extends State<MeteoBanner> {
                     const Text('🌧️', style: TextStyle(fontSize: 16)),
                     const SizedBox(width: 8),
                     Text(
-                      isIt ? 'Allerta Meteo per Oggi:' : 'Weather Alert for Today:',
+                      AppTesti.get('meteo_allerta_titolo', widget.linguaAttuale),
                       style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  isIt
-                      ? 'È prevista pioggia nella tua zona. Consigliamo di non annaffiare le tue piante da esterno!'
-                      : 'Rain is expected in your area. We advise against watering your outdoor plants!',
+                  AppTesti.get('meteo_allerta_testo', widget.linguaAttuale),
                   style: const TextStyle(color: Color(0xFF388E3C), fontSize: 13),
                 ),
               ],
             ),
           )
-              : const SizedBox.shrink(), // Quando scade il timer, l'AnimatedSize si restringe fino a scomparire
+              : const SizedBox.shrink(),
         );
       },
     );

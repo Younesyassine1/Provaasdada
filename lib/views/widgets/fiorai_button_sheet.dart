@@ -1,3 +1,6 @@
+// ============================================================
+// FILE: fiorai_button_sheet.dart
+// ============================================================
 import 'package:flutter/material.dart';
 import '../../models/entities/fioraio.dart';
 import '../../core/utils/app_strings.dart';
@@ -10,20 +13,19 @@ class FioraioBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isIt = linguaAttuale == Lingua.it;
-
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(25),
+          topRight: Radius.circular(25),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
-          // NOME DEL FIORAIO
           Row(
             children: [
               const Icon(Icons.local_florist, color: Color(0xFF4CAF50), size: 30),
@@ -31,29 +33,27 @@ class FioraioBottomSheet extends StatelessWidget {
               Expanded(
                 child: Text(
                   fioraio.nome,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2E7D32),
+                  ),
                 ),
               ),
             ],
           ),
-
           const Divider(height: 30),
-
-          // DISTANZA
           Row(
             children: [
               const Icon(Icons.directions_walk, color: Colors.blue, size: 20),
               const SizedBox(width: 10),
               Text(
-                '${isIt ? "Distanza:" : "Distance:"} ${fioraio.distanzaFormattata}',
+                '${AppTesti.get('fiorai_distanza', linguaAttuale)} ${fioraio.distanzaFormattata}',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
-
           const SizedBox(height: 30),
-
-          // PULSANTE DI CHIUSURA
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -64,10 +64,10 @@ class FioraioBottomSheet extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               icon: const Icon(Icons.map),
-              label: Text(isIt ? 'Chiudi' : 'Close'),
+              label: Text(AppTesti.get('btn_chiudi', linguaAttuale)),
               onPressed: () => Navigator.pop(context),
             ),
-          )
+          ),
         ],
       ),
     );

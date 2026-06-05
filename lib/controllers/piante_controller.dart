@@ -1,3 +1,6 @@
+// ============================================================
+// FILE: piante_controller.dart
+// ============================================================
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +11,9 @@ class PianteController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   final ValueNotifier<List<Pianta>> miePiante = ValueNotifier<List<Pianta>>([]);
+
+  // Errore esposto alla UI (null = nessun errore)
+  final ValueNotifier<String?> errore = ValueNotifier<String?>(null);
 
   CollectionReference get _pianteCollection {
     final uid = _auth.currentUser?.uid;
@@ -22,8 +28,11 @@ class PianteController {
         return Pianta.fromFirestore(doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
       miePiante.value = lista;
+      errore.value = null;
     } catch (e) {
       debugPrint("Errore nel caricamento dal Cloud: $e");
+      errore.value = "Impossibile caricare le piante. Controlla la connessione.";
+      rethrow;
     }
   }
 
@@ -34,25 +43,25 @@ class PianteController {
           .get();
 
       if (snapshotEsistente.docs.isNotEmpty) {
-        throw Exception("Hai giÃ  questa pianta nella tua serra!");
+        throw Exception("Hai già questa pianta nella tua serra!");
       }
 
       await _pianteCollection.doc().set(pianta.toFirestore());
       await caricaPiante();
     } catch (e) {
       debugPrint("Errore nel salvataggio Cloud: $e");
-      rethrow;
+      rethrow; // Propagato alla UI (RecognitionScreen lo gestisce già)
     }
   }
 
   Future<void> cambiaPosizionePianta(Pianta pianta, bool isEsterno) async {
     try {
-      await _pianteCollection.doc(pianta.id).update({
-        'isDaEsterno': isEsterno
-      });
+      await _pianteCollection.doc(pianta.id).update({'isDaEsterno': isEsterno});
       await caricaPiante();
     } catch (e) {
       debugPrint("Errore cambio posizione: $e");
+      errore.value = "Errore nello spostamento della pianta.";
+      rethrow;
     }
   }
 
@@ -62,6 +71,8 @@ class PianteController {
       await caricaPiante();
     } catch (e) {
       debugPrint("Errore nell'eliminazione Cloud: $e");
+      errore.value = "Errore nell'eliminazione della pianta.";
+      rethrow;
     }
   }
 
@@ -74,19 +85,22 @@ class PianteController {
       await caricaPiante();
     } catch (e) {
       debugPrint("Errore nell'aggiornamento Cloud: $e");
+      errore.value = "Errore durante l'annaffiatura.";
+      rethrow;
     }
   }
 
-  // NUOVO: Scrittura sul Cloud per la pulizia delle foglie
   Future<void> pulisciPianta(Pianta pianta) async {
     try {
       final piantaAggiornata = pianta.copiaCon(nuovaDataPulizia: DateTime.now());
       await _pianteCollection.doc(pianta.id).update({
         'dataUltimaPulizia': piantaAggiornata.dataUltimaPulizia?.toIso8601String()
       });
-      await caricaPiante(); // Ricarichiamo la UI dopo aver salvato
+      await caricaPiante();
     } catch (e) {
       debugPrint("Errore nell'aggiornamento Pulizia Cloud: $e");
+      errore.value = "Errore durante la pulizia.";
+      rethrow;
     }
   }
 }
