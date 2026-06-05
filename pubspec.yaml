@@ -1,0 +1,49 @@
+name: psadassa
+description: "A new Flutter project."
+
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # --- PACCHETTI FLORA LENS ---
+
+  # 1. Database Offline (Fase 2)
+  sqflite: ^2.3.0
+  path: ^1.9.0
+
+  # 2. Connessione di Rete (Trefle, Pl@ntNet, Google Maps API)
+  http: ^1.6.0
+
+  # 3. Fotocamera (Riconoscimento Piante)
+  image_picker: ^1.2.2
+
+  # 4. Modulo Logistico (Mappe e GPS)
+  google_maps_flutter: ^2.6.1
+  geolocator: ^13.0.0
+  firebase_core: ^4.10.0
+  firebase_auth: ^6.5.2
+  cloud_firestore: ^6.5.0
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.1
+  flutter_riverpod: ^3.3.1
+  flutter_dotenv: ^6.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
